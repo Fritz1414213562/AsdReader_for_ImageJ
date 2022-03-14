@@ -4,6 +4,7 @@ import ij.process.*;
 import ij.gui.*;
 import ij.io.*;
 import java.io.*;
+import java.awt.Color;
 import java.lang.*;
 import lib.*;
 import lib.util.*;
@@ -13,6 +14,7 @@ import lib.util.enums.*;
 public class AsdReader implements PlugIn {
 
 	private final int image_width = 500;
+	private final Color gold = new Color(255, 215, 0);
 
 	public void run(String arg) {
 		OpenDialog od = new OpenDialog("Select Asd File", arg);
@@ -33,6 +35,8 @@ public class AsdReader implements PlugIn {
 				// zoom in images
 				ImagePlus imp = new ImagePlus(WindowManager.getUniqueName(file_name), stack);
 				imp = ij.plugin.Scaler.resize(imp, image_width, image_width, 1, "none");
+				// set lookuptable
+				imp.setLut(LUT.createLutFromColor(gold));
 				// show
 				FileInfo fi = new FileInfo();
 				fi.fileName = file_name;
@@ -49,9 +53,14 @@ public class AsdReader implements PlugIn {
 				ImagePlus imp1ch = new ImagePlus("Untitled", stack1ch);
 				imp1ch = ij.plugin.Scaler.resize(imp1ch, image_width, image_width, 1, "none");
 				imp1ch.setTitle(WindowManager.getUniqueName(file_name + ":1ch"));
+				// set lookuptable
+				imp1ch.setLut(LUT.createLutFromColor(gold));
+
 				ImagePlus imp2ch = new ImagePlus("Untitled", stack2ch);
 				imp2ch = ij.plugin.Scaler.resize(imp2ch, image_width, image_width, 1, "none");
 				imp2ch.setTitle(WindowManager.getUniqueName(file_name + ":2ch"));
+				// set lookuptable
+				imp2ch.setLut(LUT.createLutFromColor(gold));
 				// show
 				FileInfo fi = new FileInfo();
 				fi.fileName = file_name;
