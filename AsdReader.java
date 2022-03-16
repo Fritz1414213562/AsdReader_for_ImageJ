@@ -22,6 +22,8 @@ public class AsdReader implements PlugIn {
 		if (file_name == null) return;
 		String file_dir = od.getDirectory();
 		String path = file_dir + file_name;
+		boolean isSubtracted = showDialog();
+
 		try (BufferedInputStream ifs = new BufferedInputStream(new FileInputStream(new File(path)))) {
 
 			Header file_header = ReadHeader.run(ifs);
@@ -31,7 +33,7 @@ public class AsdReader implements PlugIn {
 			if (dk_2ch == DataKind.None) { // when using 1ch ver.
 				ImageStack stack = new ImageStack();
 				// read frames
-				stack = makeStack(ifs, file_header, dk_1ch);
+				stack = makeStack(ifs, file_header, dk_1ch, isSubtracted);
 				// zoom in images
 				ImagePlus imp = new ImagePlus(WindowManager.getUniqueName(file_name), stack);
 				imp = ij.plugin.Scaler.resize(imp, image_width, image_width, 1, "none");
@@ -46,8 +48,8 @@ public class AsdReader implements PlugIn {
 			}
 			else {
 				// read frames
-				ImageStack stack1ch = makeStack(ifs, file_header, dk_1ch);
-				ImageStack stack2ch = makeStack(ifs, file_header, dk_2ch);
+				ImageStack stack1ch = makeStack(ifs, file_header, dk_1ch, isSubtracted);
+				ImageStack stack2ch = makeStack(ifs, file_header, dk_2ch, isSubtracted);
 
 				// zoom in images
 				ImagePlus imp1ch = new ImagePlus("Untitled", stack1ch);
@@ -75,7 +77,7 @@ public class AsdReader implements PlugIn {
 		}
 	}
 
-	private ImageStack makeStack(BufferedInputStream source, Header header, DataKind data_kind) {
+	private ImageStack makeStack(BufferedInputStream source, Header header, DataKind data_kind, boolean isSubtracted) {
 		int x_pixel = header.x_pixel;
 		int y_pixel = header.y_pixel;
 		int num_frames = header.num_frames;
@@ -84,9 +86,23 @@ public class AsdReader implements PlugIn {
 		for (int iframe = 0; iframe < num_frames; ++iframe) {
 			FrameHeader fheader = ReadFrame.readHeader(source);
 			float[] pixels = convertFrame(ReadFrame.readData(source, x_pixel, y_pixel), header, data_kind);
+
+			if (isSubtracted) {
+				float min_pixel = Float.MAX_VALUE;
+				for (int idx = 0; idx < pixels.length; ++idx) min_pixel = Math.min(min_pixel, pixels[idx]);
+				for (int idx = 0; idx < pixels.length; ++idx) pixels[idx] -= min_pixel;
+			}
 			retval.setPixels(pixels, iframe + 1);
 		}
 		return retval;
+	}
+
+	private boolean showDialog() {
+		GenericDialog gd = new GenericDialog("Color Scaling Subtraction");
+		gd.addCheckbox("Subtract pixel values in each frame with a minimal value", true);
+		gd.showDialog();
+		if (gd.wasCanceled()) return false;
+		return gd.getNextBoolean();
 	}
 
 
