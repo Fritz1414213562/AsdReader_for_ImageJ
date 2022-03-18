@@ -5,4 +5,6 @@ Plugin to read and Analyze HS-AFM data on ImageJ
 
 1. Move or copy Asd.jar to /path-to-ImageJ/plugin/
 2. Restart ImageJ
-3. Plugin>HS-AFM Asd File Reader
+
+## Usage
+1. Plugin>HS-AFM Asd File Reader
