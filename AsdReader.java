@@ -15,6 +15,9 @@ public class AsdReader implements PlugIn {
 
 	private final int image_width = 500;
 	private final Color gold = new Color(255, 215, 0);
+	private final String length_unit = "nm";
+	private final String time_unit = "ms";
+	private final double pixel_depth = 1.0;
 
 	public void run(String arg) {
 		OpenDialog od = new OpenDialog("Select Asd File", arg);
@@ -39,6 +42,8 @@ public class AsdReader implements PlugIn {
 				imp = ij.plugin.Scaler.resize(imp, image_width, image_width, 1, "none");
 				// set lookuptable
 				imp.setLut(LUT.createLutFromColor(gold));
+				// set scale
+				calibrateImage(imp, file_header);
 				// show
 				FileInfo fi = new FileInfo();
 				fi.fileName = file_name;
@@ -55,14 +60,18 @@ public class AsdReader implements PlugIn {
 				ImagePlus imp1ch = new ImagePlus("Untitled", stack1ch);
 				imp1ch = ij.plugin.Scaler.resize(imp1ch, image_width, image_width, 1, "none");
 				imp1ch.setTitle(WindowManager.getUniqueName(file_name + ":1ch"));
-				// set lookuptable
-				imp1ch.setLut(LUT.createLutFromColor(gold));
 
 				ImagePlus imp2ch = new ImagePlus("Untitled", stack2ch);
 				imp2ch = ij.plugin.Scaler.resize(imp2ch, image_width, image_width, 1, "none");
 				imp2ch.setTitle(WindowManager.getUniqueName(file_name + ":2ch"));
+
 				// set lookuptable
+				imp1ch.setLut(LUT.createLutFromColor(gold));
 				imp2ch.setLut(LUT.createLutFromColor(gold));
+				// set scale
+				calibrateImage(imp1ch, file_header);
+				calibrateImage(imp2ch, file_header);
+
 				// show
 				FileInfo fi = new FileInfo();
 				fi.fileName = file_name;
@@ -153,6 +162,25 @@ public class AsdReader implements PlugIn {
 			retval[idx] = coef * converter.levelToVoltage(pixels[idx]);
 
 		return retval;
+	}
+
+
+	private void calibrateImage(ImagePlus imp, Header header) {
+		double width  = (double) header.x_scanning_range / (double) image_width;
+		double height = (double) header.y_scanning_range / (double) image_width;
+
+		ij.measure.Calibration cal = imp.getCalibration();
+
+		// space
+		cal.setXUnit(length_unit);
+		cal.setYUnit(length_unit);
+		cal.setZUnit(length_unit);
+		cal.pixelWidth = width;
+		cal.pixelHeight = height;
+		cal.pixelDepth = pixel_depth;
+		// time
+		cal.setTimeUnit(time_unit);
+		cal.frameInterval = header.frame_acquision_time;
 	}
 
 }

@@ -34,4 +34,14 @@ public class ReadFrame {
 		}
 		return frame;
 	}
+
+	public static short[] readData(BufferedInputStream source, int x_pixel, int y_pixel) {
+		short[] frame = new short[x_pixel * y_pixel];
+		for (int icol = y_pixel - 1; icol >= 0; --icol) {
+			for (int irow = 0; irow < x_pixel; ++irow) {
+				frame[irow + x_pixel * icol] = ReadBinary.AsShort(source);
+			}
+		}
+		return frame;
+	}
 }
