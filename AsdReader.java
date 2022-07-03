@@ -13,11 +13,12 @@ import lib.util.enums.*;
 
 public class AsdReader implements PlugIn {
 
-	private final int image_width = 500;
 	private final Color gold = new Color(255, 215, 0);
 	private final String length_unit = "nm";
 	private final String time_unit = "ms";
 	private final double pixel_depth = 1.0;
+	private final int minimal_window_size = 500;
+	private int npixel = 1;
 
 	public void run(String arg) {
 		OpenDialog od = new OpenDialog("Select Asd File", arg);
@@ -30,6 +31,9 @@ public class AsdReader implements PlugIn {
 		try (BufferedInputStream ifs = new BufferedInputStream(new FileInputStream(new File(path)))) {
 
 			Header file_header = ReadHeader.run(ifs);
+			npixel = Math.max(file_header.x_pixel, file_header.y_pixel);
+			int zoom_iter_num = minimal_window_size / npixel + 1;
+			//int zoom_iter_num = 3;
 			DataKind dk_1ch = file_header.data_kind_1ch;
 			DataKind dk_2ch = file_header.data_kind_2ch;
 
@@ -39,7 +43,7 @@ public class AsdReader implements PlugIn {
 				stack = makeStack(ifs, file_header, dk_1ch, isSubtracted);
 				// zoom in images
 				ImagePlus imp = new ImagePlus(WindowManager.getUniqueName(file_name), stack);
-				imp = ij.plugin.Scaler.resize(imp, image_width, image_width, 1, "none");
+				imp = imp.resize(npixel, npixel, "none");
 				// set lookuptable
 				imp.setLut(LUT.createLutFromColor(gold));
 				// set scale
@@ -50,6 +54,10 @@ public class AsdReader implements PlugIn {
 				fi.directory = file_dir;
 				imp.setFileInfo(fi);
 				if (arg.equals("")) imp.show();
+				// zoom in
+				for (int idx = 0; idx < zoom_iter_num; ++idx) {
+					ij.plugin.Zoom.in(imp);
+				}
 			}
 			else {
 				// read frames
@@ -57,21 +65,18 @@ public class AsdReader implements PlugIn {
 				ImageStack stack2ch = makeStack(ifs, file_header, dk_2ch, isSubtracted);
 
 				// zoom in images
-				ImagePlus imp1ch = new ImagePlus("Untitled", stack1ch);
-				imp1ch = ij.plugin.Scaler.resize(imp1ch, image_width, image_width, 1, "none");
-				imp1ch.setTitle(WindowManager.getUniqueName(file_name + ":1ch"));
-
-				ImagePlus imp2ch = new ImagePlus("Untitled", stack2ch);
-				imp2ch = ij.plugin.Scaler.resize(imp2ch, image_width, image_width, 1, "none");
-				imp2ch.setTitle(WindowManager.getUniqueName(file_name + ":2ch"));
-
+				ImagePlus imp1ch = new ImagePlus("Untitled: 1ch", stack1ch);
+				imp1ch = imp1ch.resize(npixel, npixel, "none");
+				imp1ch.setTitle(WindowManager.getUniqueName(file_name + " 1ch"));
+				ImagePlus imp2ch = new ImagePlus("Untitled: 2ch", stack2ch);
+				imp2ch = imp2ch.resize(npixel, npixel, "none");
+				imp2ch.setTitle(WindowManager.getUniqueName(file_name + " 2ch"));
 				// set lookuptable
 				imp1ch.setLut(LUT.createLutFromColor(gold));
 				imp2ch.setLut(LUT.createLutFromColor(gold));
 				// set scale
 				calibrateImage(imp1ch, file_header);
 				calibrateImage(imp2ch, file_header);
-
 				// show
 				FileInfo fi = new FileInfo();
 				fi.fileName = file_name;
@@ -80,6 +85,12 @@ public class AsdReader implements PlugIn {
 				imp2ch.setFileInfo(fi);
 				if (arg.equals("")) imp1ch.show();
 				if (arg.equals("")) imp2ch.show();
+				// zoom in
+				for (int idx = 0; idx < zoom_iter_num; ++idx) {
+					ij.plugin.Zoom.in(imp1ch);
+					ij.plugin.Zoom.in(imp2ch);
+				}
+
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -93,8 +104,12 @@ public class AsdReader implements PlugIn {
 		ImageStack retval = new ImageStack(x_pixel, y_pixel, num_frames);
 
 		for (int iframe = 0; iframe < num_frames; ++iframe) {
+			// read frame header
 			FrameHeader fheader = ReadFrame.readHeader(source);
+			// read frame
 			float[] pixels = convertFrame(ReadFrame.readData(source, x_pixel, y_pixel), header, data_kind);
+			// skip extended data (OTI, Interactive mode, IL Force Curve, etc.)
+			ReadBinary.SkippingBytes(source, header.frame_header_size - 32);
 
 			if (isSubtracted) {
 				float min_pixel = Float.MAX_VALUE;
@@ -166,8 +181,8 @@ public class AsdReader implements PlugIn {
 
 
 	private void calibrateImage(ImagePlus imp, Header header) {
-		double width  = (double) header.x_scanning_range / (double) image_width;
-		double height = (double) header.y_scanning_range / (double) image_width;
+		double width  = (double) header.x_scanning_range / (double) npixel;
+		double height = (double) header.y_scanning_range / (double) npixel;
 
 		ij.measure.Calibration cal = imp.getCalibration();
 

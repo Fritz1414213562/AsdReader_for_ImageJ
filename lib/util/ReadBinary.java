@@ -60,6 +60,16 @@ public class ReadBinary {
 		return bytes;
 	}
 
+	public static void SkippingBytes(BufferedInputStream source, int bytes_size) {
+		byte[] bytes = new byte[bytes_size];
+		try {
+			source.read(bytes, 0, bytes_size);
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
 	public static String AsString(BufferedInputStream source, int string_size) {
 		byte[] bytes = new byte[string_size];
 		try {
